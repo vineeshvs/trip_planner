@@ -28,7 +28,7 @@ except Exception:
 with st.sidebar:
     st.header("⚙️ Status")
     if api_key:
-        st.success("API Key loaded securely from Secrets! ✨")
+        st.success("API Key loaded securely! ✨")
     else:
         st.error("API Key not found in Streamlit Secrets.")
 
