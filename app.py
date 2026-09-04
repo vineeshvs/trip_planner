@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+from google import genai
 import os
 from datetime import date
 
@@ -35,7 +35,6 @@ with st.sidebar:
 df = load_data()
 tab1, tab2, tab3 = st.tabs(["📝 Log a Trip", "📅 Past Trips", "✨ AI Suggestions"])
 
-# Tab 1: Input Form
 with tab1:
     st.subheader("Add a New Trip or Dinner")
     with st.form("add_trip_form"):
@@ -62,7 +61,6 @@ with tab1:
             else:
                 st.error("Please fill out at least the Place Name and Cuisine/Activity.")
 
-# Tab 2: History Log
 with tab2:
     st.subheader("Our Travel & Dining History")
     if not df.empty:
@@ -70,21 +68,21 @@ with tab2:
     else:
         st.info("No trips logged yet.")
 
-# Tab 3: Recommendation Engine
 with tab3:
     st.subheader("Surprise Us!")
     location = st.text_input("Where are we looking?", value="Cambridge, UK")
     
     if st.button("Get AI Suggestions ✨"):
         if not api_key:
-            st.error("Please enter your API Key.")
+            st.error("Please enter your API Key in Streamlit Secrets.")
         elif df.empty:
             st.warning("Log at least one past trip first.")
         elif not location:
             st.warning("Please enter your location.")
         else:
             try:
-                genai.configure(api_key=api_key)
+                # Initialize the modern Google GenAI client
+                client = genai.Client(api_key=api_key)
                 recent_trips = df.tail(10).to_dict(orient='records')
                 prompt = f"""
                 My wife, our 4-year-old daughter, and I are looking for our next family-friendly weekend trip or dinner spot near {location}.
@@ -92,8 +90,10 @@ with tab3:
                 Suggest 3 NEW, highly-rated local places. DO NOT suggest overlapping cuisines/places.
                 """
                 with st.spinner("Finding fresh recommendations..."):
-                    model = genai.GenerativeModel("gemini-1.5-flash")
-                    response = model.generate_content(prompt)
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt,
+                    )
                     st.markdown(response.text)
             except Exception as e:
                 st.error(f"An API error occurred: {e}")
