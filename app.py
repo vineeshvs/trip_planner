@@ -7,32 +7,30 @@ from datetime import date
 # File for logging our trip history
 DATA_FILE = "family_trips.csv"
 
-# --- Settings / API Key ---
-api_key = st.secrets.get("GEMINI_API_KEY")
-
-if not api_key:
-    st.sidebar.error("API key not found. Please add it to Streamlit Secrets.")
-
 def load_data():
-    """Loads the trip database or creates an empty one if it doesn't exist."""
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     else:
         return pd.DataFrame(columns=["Date", "Place Name", "Cuisine/Activity", "Rating", "Notes"])
 
 def save_data(df):
-    """Saves the trip database to a local CSV file."""
     df.to_csv(DATA_FILE, index=False)
 
 st.set_page_config(page_title="Family Trip Planner", page_icon="🚗", layout="centered")
 st.title("🚗 Family Trip & Dinner Planner")
 
-# --- Sidebar: Settings ---
+# --- Pull API Key Securely from Streamlit Secrets ---
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    api_key = None
+
 with st.sidebar:
-    st.header("⚙️ Settings")
-    api_key = st.text_input("Gemini API Key", type="password")
-    if not api_key:
-        st.warning("Enter your Gemini API Key to enable AI recommendations.")
+    st.header("⚙️ Status")
+    if api_key:
+        st.success("API Key loaded securely from Secrets! ✨")
+    else:
+        st.error("API Key not found in Streamlit Secrets.")
 
 df = load_data()
 tab1, tab2, tab3 = st.tabs(["📝 Log a Trip", "📅 Past Trips", "✨ AI Suggestions"])
