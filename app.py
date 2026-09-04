@@ -7,6 +7,12 @@ from datetime import date
 # File for logging our trip history
 DATA_FILE = "family_trips.csv"
 
+# --- Settings / API Key ---
+api_key = st.secrets.get("GEMINI_API_KEY")
+
+if not api_key:
+    st.sidebar.error("API key not found. Please add it to Streamlit Secrets.")
+
 def load_data():
     """Loads the trip database or creates an empty one if it doesn't exist."""
     if os.path.exists(DATA_FILE):
