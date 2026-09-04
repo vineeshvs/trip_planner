@@ -81,6 +81,9 @@ with tab3:
             st.warning("Please enter your location.")
         else:
             try:
+                # Ensure the environment variable is set for robust authentication across all API key formats
+                os.environ["GEMINI_API_KEY"] = api_key
+                
                 # Initialize the modern Google GenAI client
                 client = genai.Client(api_key=api_key)
                 recent_trips = df.tail(10).to_dict(orient='records')
