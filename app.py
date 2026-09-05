@@ -93,11 +93,38 @@ with tab3:
             try:
                 # Initialize the modern Google GenAI client
                 client = genai.Client(api_key=api_key)
-                recent_trips = df.tail(10).to_dict(orient='records')
+
+                # Split past trips into what we loved vs. what didn't land, based on rating
+                trips_df = df.copy()
+                trips_df["Rating"] = pd.to_numeric(trips_df["Rating"], errors="coerce")
+
+                loved = trips_df[trips_df["Rating"] >= 4]
+                mixed = trips_df[trips_df["Rating"] == 3]
+                disliked = trips_df[trips_df["Rating"] <= 2]
+
+                def format_trips(sub_df):
+                    if sub_df.empty:
+                        return "None yet."
+                    lines = []
+                    for _, row in sub_df.iterrows():
+                        note = row.get("Notes")
+                        note_str = f" — {note}" if pd.notna(note) and str(note).strip() else ""
+                        lines.append(f"- {row['Place Name']} ({row['Cuisine/Activity']}, rated {row['Rating']}/5){note_str}")
+                    return "\n".join(lines)
+
                 prompt = f"""
-                My wife, our 4-year-old daughter, and I are looking for our next family-friendly weekend trip or dinner spot near {location}.
-                Here are our most recent outings: {recent_trips}
-                Suggest 3 NEW, highly-rated local places. DO NOT suggest overlapping cuisines/places.
+                You know our family well: me, my wife, and our 4-year-old daughter. We're looking for our next family-friendly weekend trip or dinner spot near {location}.
+
+                Places and activities we've LOVED before (high ratings):
+                {format_trips(loved)}
+
+                Places that were just OK (middle ratings):
+                {format_trips(mixed)}
+
+                Places that DIDN'T work for us (low ratings) — avoid similar picks:
+                {format_trips(disliked)}
+
+                Based on this feedback, suggest 3 NEW places or activities near {location} that we haven't already tried. For each one, write a short, warm, personal note — like a friend who knows our family — explaining specifically why it fits what we've enjoyed before and how it avoids what didn't work for us. DO NOT suggest overlapping cuisines/places we've already been to.
                 """
                 with st.spinner("Finding fresh recommendations..."):
                     response = client.models.generate_content(
