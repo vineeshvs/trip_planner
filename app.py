@@ -3,23 +3,33 @@ import pandas as pd
 from google import genai
 import os
 from datetime import date
+from streamlit_gsheets import GSheetsConnection
 
-# File for logging our trip history
-DATA_FILE = "family_trips.csv"
-
-def load_data():
-    if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
-    else:
-        return pd.DataFrame(columns=["Date", "Place Name", "Cuisine/Activity", "Rating", "Notes"])
-
-def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
+COLUMNS = ["Date", "Place Name", "Cuisine/Activity", "Rating", "Notes"]
+WORKSHEET = "Trips"  # name of the tab inside your Google Sheet
 
 st.set_page_config(page_title="Family Trip Planner", page_icon="🚗", layout="centered")
 st.title("🚗 Family Trip & Dinner Planner")
 
-# --- Pull API Key Securely from Streamlit Secrets ---
+# --- Google Sheets connection (shared store for both of us) ---
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def load_data():
+    try:
+        df = conn.read(worksheet=WORKSHEET, ttl=0)
+        df = df.dropna(how="all")  # drop blank trailing rows Sheets sometimes returns
+        for col in COLUMNS:
+            if col not in df.columns:
+                df[col] = None
+        return df[COLUMNS]
+    except Exception:
+        # Empty/brand-new sheet, or the worksheet doesn't exist yet
+        return pd.DataFrame(columns=COLUMNS)
+
+def save_data(df):
+    conn.update(worksheet=WORKSHEET, data=df)
+
+# --- Pull Gemini API Key Securely from Streamlit Secrets ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
 except Exception:
@@ -28,9 +38,9 @@ except Exception:
 with st.sidebar:
     st.header("⚙️ Status")
     if api_key:
-        st.success("API Key loaded securely! ✨")
+        st.success("Gemini API Key loaded securely! ✨")
     else:
-        st.error("API Key not found in Streamlit Secrets.")
+        st.error("Gemini API Key not found in Streamlit Secrets.")
 
 df = load_data()
 tab1, tab2, tab3 = st.tabs(["📝 Log a Trip", "📅 Past Trips", "✨ AI Suggestions"])
@@ -44,7 +54,7 @@ with tab1:
         rating = st.slider("Rating", 1, 5, 3)
         notes = st.text_area("Notes")
         submitted = st.form_submit_button("Save Entry")
-        
+
         if submitted:
             if place_name and cuisine:
                 new_entry = pd.DataFrame([{
@@ -54,8 +64,8 @@ with tab1:
                     "Rating": rating,
                     "Notes": notes
                 }])
-                df = pd.concat([df, new_entry], ignore_index=True)
-                save_data(df)
+                updated_df = pd.concat([df, new_entry], ignore_index=True)
+                save_data(updated_df)
                 st.success(f"Successfully added '{place_name}'!")
                 st.rerun()
             else:
@@ -71,19 +81,16 @@ with tab2:
 with tab3:
     st.subheader("Surprise Us!")
     location = st.text_input("Where are we looking?", value="Cambridge, UK")
-    
+
     if st.button("Get AI Suggestions ✨"):
         if not api_key:
-            st.error("Please enter your API Key in Streamlit Secrets.")
+            st.error("Gemini API Key not found in Streamlit Secrets.")
         elif df.empty:
             st.warning("Log at least one past trip first.")
         elif not location:
             st.warning("Please enter your location.")
         else:
             try:
-                # Ensure the environment variable is set for robust authentication across all API key formats
-                os.environ["GEMINI_API_KEY"] = api_key
-                
                 # Initialize the modern Google GenAI client
                 client = genai.Client(api_key=api_key)
                 recent_trips = df.tail(10).to_dict(orient='records')
