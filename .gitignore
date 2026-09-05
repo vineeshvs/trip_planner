@@ -1,0 +1,8 @@
+# Ignore the local database file
+family_trips.csv
+
+# Ignore standard Python cache and environment files
+__pycache__/
+.env
+.venv/
+env/
