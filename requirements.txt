@@ -2,3 +2,5 @@ streamlit
 pandas
 google-genai>=2.19.0
 st-gsheets-connection
+geopy
+streamlit-searchbox
